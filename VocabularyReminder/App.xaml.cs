@@ -1,4 +1,6 @@
-﻿using Microsoft.QueryStringDotNET;
+﻿using DataAccessLibrary;
+using Microsoft.Data.Sqlite;
+using Microsoft.QueryStringDotNET;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -12,6 +14,7 @@ using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Windows.Media.Core;
 using Windows.Media.Playback;
+using Windows.Storage;
 using Windows.System;
 using Windows.UI.Notifications;
 using Windows.UI.Xaml;
@@ -32,9 +35,6 @@ namespace VocabularyReminder
 
         bool isInBackgroundMode;
 
-        private string vocabulary = "";
-        private int count = 0;
-
         private static MediaPlayer mediaPlayer = new MediaPlayer();
 
         /// <summary>
@@ -44,6 +44,7 @@ namespace VocabularyReminder
         public App()
         {
             this.InitializeComponent();
+            InitializeDatabase();
             this.Suspending += OnSuspending;
 
             MemoryManager.AppMemoryUsageLimitChanging += MemoryManager_AppMemoryUsageLimitChanging;
@@ -59,6 +60,28 @@ namespace VocabularyReminder
             // because the app may need to restore UI.
             EnteredBackground += App_EnteredBackground;
             LeavingBackground += App_LeavingBackground;
+        }
+
+        public async static void InitializeDatabase()
+        {
+            await ApplicationData.Current.LocalFolder.CreateFileAsync("vocabulary.db", CreationCollisionOption.OpenIfExists);
+            string dbpath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "vocabulary.db");
+            using (SqliteConnection db =
+               new SqliteConnection($"Filename={dbpath}"))
+            {
+                db.Open();
+                String tableCommand = "CREATE TABLE IF NOT " +
+                    "EXISTS Dictionary (Id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "Name NVARCHAR(2048) NULL, Description NVARCHAR(2048) NULL)";
+                SqliteCommand createTable = new SqliteCommand(tableCommand, db);
+                createTable.ExecuteReader();
+
+                tableCommand = "CREATE TABLE IF NOT " +
+                    "EXISTS Vocabulary (Id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "Word NVARCHAR(2048) NULL, Type NVARCHAR(100) NULL, Ipa NVARCHAR(100) NULL, Translate NVARCHAR(2048) NULL, PlayURL NVARCHAR(2048) NULL)";
+                createTable = new SqliteCommand(tableCommand, db);
+                createTable.ExecuteReader();
+            }
         }
 
         private void App_Suspending(object sender, SuspendingEventArgs e)
@@ -250,20 +273,8 @@ namespace VocabularyReminder
         {
             if (subMsg == null)
                 subMsg = GetMemoryUsageText();
-
             Debug.WriteLine(msg + "\n" + subMsg);
-
-            //if (!SettingsService.Instance.ToastOnAppEvents)
-            //    return;
-
-            var toastXml = ToastNotificationManager.GetTemplateContent(ToastTemplateType.ToastText02);
-
-            var toastTextElements = toastXml.GetElementsByTagName("text");
-            toastTextElements[0].AppendChild(toastXml.CreateTextNode(msg));
-            toastTextElements[1].AppendChild(toastXml.CreateTextNode(subMsg));
-
-            var toast = new ToastNotification(toastXml);
-            ToastNotificationManager.CreateToastNotifier().Show(toast);
+            return;
         }
 
 
@@ -360,25 +371,7 @@ namespace VocabularyReminder
                 string main_action;
                 args.TryGetValue("action", out main_action);
                 // See what action is being requested 
-                switch (main_action)
-                {
-                    case "play":
-                        this.count++;
-                        string Mp3Url = args["url"];
-                        if (Mp3Url.Length > 0)
-                        {
-                            Mp3.play(mediaPlayer, Mp3Url);
-                        }
-                        Vocabulary.load("play" + this.count);
-                        break;
-                    case "view":
-                        string SearchUrl = args["url"];
-                        // The URI to launch
-                        var uriBing = new Uri(SearchUrl);
-                        // Launch the URI
-                        var success = Windows.System.Launcher.LaunchUriAsync(uriBing);
-                        break;
-                }
+                processCustomAction(main_action, args);
 
                 // If we're loading the app for the first time, place the main page on
                 // the back stack so that user can go back after they've been
@@ -438,6 +431,38 @@ namespace VocabularyReminder
             BackgroundTaskRegistration registration = builder.Register();
         }
 
+        private void processCustomAction(string main_action, QueryString args)
+        {
+            switch (main_action)
+            {
+                case "play":
+                    string Mp3Url = args["url"];
+                    if (Mp3Url.Length > 0)
+                    {
+                        Mp3.play(mediaPlayer, Mp3Url);
+                    }
+                    var toast = ToastNotificationManager.History.GetHistory().Last();
+                    ToastNotificationManager.CreateToastNotifier().Show(toast);
+                    break;
+                case "next":
+                    int WordId = int.Parse(args["WordId"]);
+                    if (WordId > 0)
+                    {
+                        WordId++;
+                        Vocabulary _item = DataAccess.GetVocabularyById(WordId);
+                        VocabularyToast.loadByVocabulary(_item);
+                    }
+                    break;
+                case "view":
+                    string SearchUrl = args["url"];
+                    // The URI to launch
+                    var uriBing = new Uri(SearchUrl);
+                    // Launch the URI
+                    var success = Windows.System.Launcher.LaunchUriAsync(uriBing);
+                    break;
+            }
+        }
+
         protected override void OnBackgroundActivated(BackgroundActivatedEventArgs args)
         {
             var deferral = args.TaskInstance.GetDeferral();
@@ -450,22 +475,7 @@ namespace VocabularyReminder
 
                 if (qs.TryGetValue("action", out string action))
                 {
-                    switch (action)
-                    {
-                        case "play":
-                            this.count++;
-                            string Mp3Url = qs["url"];
-                            if (Mp3Url.Length > 0)
-                            {
-                                Mp3.play(mediaPlayer, Mp3Url);
-                            }
-                            Vocabulary.load("play" + this.count);
-                            break;
-
-                        case "view":
-                            Vocabulary.load("view");
-                            break;
-                    }
+                    processCustomAction(action, qs);
                 }
             }
 

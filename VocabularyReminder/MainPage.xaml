@@ -9,7 +9,10 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid>
-        <Button Content="Button" Margin="369,382,0,0" VerticalAlignment="Top" Height="118" Width="211" Click="Button_Click"/>
+        <Button x:Name="btn_Start_Learning" Content="Start Learning" Margin="95,106,0,0" VerticalAlignment="Top" Height="118" Width="211" Click="btn_Start_Learning_Click"/>
+        <TextBox x:Name="inp_ListWord" HorizontalAlignment="Left" Margin="390,106,0,0" Text="" TextWrapping="Wrap" VerticalAlignment="Top" Height="Auto" Width="728" AcceptsReturn="True" PlaceholderText="Nhập list từ tại đây..." RequestedTheme="Default" />
+        <Button x:Name="btn_Import" Content="Import" Margin="95,250,0,0" VerticalAlignment="Top" Height="116" Width="211" Click="btn_Import_Click"/>
+        <Button x:Name="btn_Process_Translate_Mp3" Content="Process Translate and Mp3" Margin="95,402,0,0" VerticalAlignment="Top" Height="116" Width="211" Click="btn_Process_Translate_Mp3_Click"/>
 
     </Grid>
 </Page>

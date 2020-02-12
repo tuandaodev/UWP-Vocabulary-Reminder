@@ -13,8 +13,12 @@ using Windows.UI.Xaml.Data;
 using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Navigation;
-
-// The Blank Page item template is documented at https://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
+using DataAccessLibrary;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using HtmlAgilityPack;
+using VocabularyReminder.Services;
+using System.Diagnostics;
 
 namespace VocabularyReminder
 {
@@ -37,6 +41,7 @@ namespace VocabularyReminder
             set { PlaybackService.Instance.CurrentPlaylist = value; }
         }
 
+        private int WordId = 1;
 
         public MainPage()
         {
@@ -47,9 +52,59 @@ namespace VocabularyReminder
                 PlaybackList = new MediaPlaybackList();
         }
 
-        private void Button_Click(object sender, RoutedEventArgs e)
+        private void btn_Import_Click(object sender, RoutedEventArgs e)
         {
-            Vocabulary.load("Education");
+            string tempInp = this.inp_ListWord.Text;
+            var ListWord = Regex.Split(tempInp, "\r\n|\r|\n");
+            foreach (var item in ListWord)
+            {
+                DataAccess.AddVocabulary(item);
+            }
+            Helper.ShowToast("Import Success.");
+        }
+
+        private void ProcessBackgroundTranslate()
+        {
+            var ListVocabulary = DataAccess.GetListVocabularyToTranslate();
+            foreach (var item in ListVocabulary)
+            {
+                TranslateService.goTranslateAsync(item);
+            }
+            Helper.ShowToast("Process Background Translate Finished.");
+        }
+
+        private void ProcessBackgroundGetPlayURL()
+        {
+            var ListVocabulary = DataAccess.GetListVocabularyToGetPlayURL();
+            foreach (var item in ListVocabulary)
+            {
+                TranslateService.goGetPlayURLAsync(item);
+            }
+            Helper.ShowToast("Process Background Get Play URL Finished.");
+        }
+
+        private void btn_Process_Translate_Mp3_Click(object sender, RoutedEventArgs e)
+        {
+            Task.Factory.StartNew(() =>
+            {
+                this.ProcessBackgroundTranslate();
+                this.ProcessBackgroundGetPlayURL();
+            });
+        }
+
+        private void btn_Start_Learning_Click(object sender, RoutedEventArgs e)
+        {
+            Task.Factory.StartNew(async () =>
+            {
+                WordId++;
+                Vocabulary _item = DataAccess.GetVocabularyById(WordId);
+                VocabularyToast.loadByVocabulary(_item);
+                //while (true)
+                //{
+                   
+                //    await Task.Delay(1000);
+                //}
+            });
         }
     }
 }
