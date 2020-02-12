@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DataAccessLibrary;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -35,6 +36,40 @@ namespace VocabularyReminder
                     mediaPlayer.Source = MediaSource.CreateFromDownloadOperation(download);
                     mediaPlayer.AutoPlay = true;
                     mediaPlayer.Play();
+                }
+            });
+        }
+
+        public static void preloadMp3File(Vocabulary _item)
+        {
+            Task.Factory.StartNew(() =>
+            {
+                if (!String.IsNullOrEmpty(_item.PlayURL))
+                {
+                    preLoadMp3Remote(_item.PlayURL);
+                }
+                if (!String.IsNullOrEmpty(_item.PlayURL2))
+                {
+                    preLoadMp3Remote(_item.PlayURL2);
+                }
+            });
+        }
+
+        private static void preLoadMp3Remote(string mp3RemoteUrl)
+        {
+            Task.Factory.StartNew(async () =>
+            {
+                var url = new Uri(mp3RemoteUrl);
+                string filename = System.IO.Path.GetFileName(url.LocalPath);
+                if (await isFilePresent(filename))
+                {
+                    // do nothing
+                }
+                else
+                {
+                    var destinationFile = await ApplicationData.Current.LocalFolder.CreateFileAsync(filename, CreationCollisionOption.ReplaceExisting);
+                    var download = new BackgroundDownloader().CreateDownload(url, destinationFile);
+                    await download.StartAsync().AsTask();
                 }
             });
         }

@@ -27,6 +27,7 @@ namespace VocabularyReminder
                 content = getToastContentWithoutPlay(_item);
             } else
             {
+                Mp3.preloadMp3File(_item);
                 content = getToastContent(_item);
             }
             
@@ -40,6 +41,11 @@ namespace VocabularyReminder
 
         private static ToastContent getToastContent(Vocabulary _item)
         {
+            string _Ipa = _item.Ipa;
+            if (_item.Ipa != _item.Ipa2) {
+                _Ipa = _item.Ipa + " " + _item.Ipa2;
+            }
+            
             ToastContent content = new ToastContent()
             {
                 Launch = "vocabulary-reminder",
@@ -52,18 +58,66 @@ namespace VocabularyReminder
                         {
                             new AdaptiveText()
                             {
-                                Text = _item.Word,
-                                HintMaxLines = 1
+                                Text = _item.Define,
                             },
 
                             new AdaptiveText()
                             {
-                                Text = _item.Ipa,
+                                Text = _item.Example,
                             },
 
                             new AdaptiveText()
                             {
-                                Text = _item.Translate
+                                Text = _item.Example2,
+                            },
+
+                            new AdaptiveGroup()
+                            {
+                                Children =
+                                {
+                                    new AdaptiveSubgroup()
+                                    {
+                                        Children =
+                                        {
+                                            new AdaptiveText()
+                                            {
+                                                Text = _item.Word,
+                                                HintStyle = AdaptiveTextStyle.Base
+                                            },
+                                            new AdaptiveText()
+                                            {
+                                                Text = _Ipa,
+                                                HintStyle = AdaptiveTextStyle.Base
+                                            },
+                                            new AdaptiveText()
+                                            {
+                                                Text = _item.Type,
+                                                HintStyle = AdaptiveTextStyle.CaptionSubtle
+                                            }
+                                        }
+                                    },
+                                    new AdaptiveSubgroup()
+                                    {
+                                        Children =
+                                        {
+                                            new AdaptiveText()
+                                            {
+                                                Text = _item.Translate,
+                                                HintStyle = AdaptiveTextStyle.Base
+                                            },
+                                            new AdaptiveText()
+                                            {
+                                                Text = _item.Example,
+                                                HintStyle = AdaptiveTextStyle.Base
+                                            },
+                                            new AdaptiveText()
+                                            {
+                                                Text = _item.Example2,
+                                                HintStyle = AdaptiveTextStyle.CaptionSubtle
+                                            }
+                                        }
+                                    },
+                                }
                             }
                         },
                         HeroImage = new ToastGenericHeroImage()
@@ -78,11 +132,23 @@ namespace VocabularyReminder
                 {
                     Buttons =
                         {
-                            new ToastButton("Play", new QueryString()
+                            new ToastButton("\u25B6", new QueryString()
                             {
                                 { "WordId", _item.Id.ToString() },
                                 { "action", "play" },
                                 { "url", _item.PlayURL.ToString() }
+                            }.ToString()) {
+                                ActivationType = ToastActivationType.Background,
+                                ActivationOptions = new ToastActivationOptions()
+                                {
+                                    AfterActivationBehavior = ToastAfterActivationBehavior.PendingUpdate
+                                }
+                            },
+                            new ToastButton("\u25B7", new QueryString()
+                            {
+                                { "WordId", _item.Id.ToString() },
+                                { "action", "play" },
+                                { "url", _item.PlayURL2.ToString() }
                             }.ToString())
                             {
                                 ActivationType = ToastActivationType.Background,
@@ -108,7 +174,7 @@ namespace VocabularyReminder
                                     { "action", "view" },
                                     { "url", viewDicOnlineUrl + _item.Word }
 
-                             }.ToString()),
+                            }.ToString()),
                             new ToastButton("Close", "dismiss")
                             {
                                 ActivationType = ToastActivationType.Background

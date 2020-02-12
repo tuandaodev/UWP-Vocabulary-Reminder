@@ -170,7 +170,28 @@ namespace DataAccessLibrary
             return _item;
         }
 
+        public static int GetFirstWordId()
+        {
+            int _WordId = 1;
+            string dbpath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "vocabulary.db");
+            using (SqliteConnection db =
+               new SqliteConnection($"Filename={dbpath}"))
+            {
+                db.Open();
 
+                SqliteCommand selectCommand = new SqliteCommand
+                    ("SELECT Id from Vocabulary LIMIT 1;", db);
+
+                SqliteDataReader query = selectCommand.ExecuteReader();
+
+                while (query.Read())
+                {
+                    _WordId = int.Parse(query.GetString(0));
+                }
+                db.Close();
+            }
+            return _WordId;
+        }
 
         public static List<Vocabulary> GetListVocabulary()
         {

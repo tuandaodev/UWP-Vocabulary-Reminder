@@ -420,16 +420,25 @@ namespace VocabularyReminder
             switch (main_action)
             {
                 case "play":
+                    int WordId;
                     string Mp3Url = args["url"];
                     if (Mp3Url.Length > 0)
                     {
                         Mp3.play(mediaPlayer, Mp3Url);
                     }
-                    var toast = ToastNotificationManager.History.GetHistory().Last();
-                    ToastNotificationManager.CreateToastNotifier().Show(toast);
+                    var toast = ToastNotificationManager.History.GetHistory();
+                    if (toast.Count > 0)
+                    {
+                        ToastNotificationManager.CreateToastNotifier().Show(toast.Last());
+                    } else
+                    {
+                        WordId = int.Parse(args["WordId"]);
+                        Vocabulary _item = DataAccess.GetVocabularyById(WordId);
+                        VocabularyToast.loadByVocabulary(_item);
+                    }
                     break;
                 case "next":
-                    int WordId = int.Parse(args["WordId"]);
+                    WordId = int.Parse(args["WordId"]);
                     if (WordId > 0)
                     {
                         WordId++;

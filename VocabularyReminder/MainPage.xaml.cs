@@ -51,6 +51,8 @@ namespace VocabularyReminder
             // Create a new playback list
             if (PlaybackList == null)
                 PlaybackList = new MediaPlaybackList();
+
+            this.WordId = DataAccess.GetFirstWordId();
         }
 
         private void btn_Import_Click(object sender, RoutedEventArgs e)
