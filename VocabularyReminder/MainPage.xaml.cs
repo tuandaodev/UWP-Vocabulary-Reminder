@@ -19,6 +19,7 @@ using System.Threading.Tasks;
 using HtmlAgilityPack;
 using VocabularyReminder.Services;
 using System.Diagnostics;
+using Windows.Storage;
 
 namespace VocabularyReminder
 {
@@ -56,11 +57,16 @@ namespace VocabularyReminder
         {
             string tempInp = this.inp_ListWord.Text;
             var ListWord = Regex.Split(tempInp, "\r\n|\r|\n");
-            foreach (var item in ListWord)
+            Task.Factory.StartNew(() =>
             {
-                DataAccess.AddVocabulary(item);
-            }
-            Helper.ShowToast("Import Success.");
+                int Count = 0;
+                foreach (var item in ListWord)
+                {
+                    DataAccess.AddVocabulary(item);
+                    Count++;
+                }
+                Helper.ShowToast("Import Success " + Count + " Vocabulary.");
+            });
         }
 
         private void ProcessBackgroundTranslate()
@@ -94,16 +100,26 @@ namespace VocabularyReminder
 
         private void btn_Start_Learning_Click(object sender, RoutedEventArgs e)
         {
-            Task.Factory.StartNew(async () =>
+            Task.Factory.StartNew(() =>
             {
+                Helper.ClearToast();
                 WordId++;
                 Vocabulary _item = DataAccess.GetVocabularyById(WordId);
                 VocabularyToast.loadByVocabulary(_item);
                 //while (true)
                 //{
-                   
+
                 //    await Task.Delay(1000);
                 //}
+            });
+        }
+
+        private void btn_Delete_DB_Click(object sender, RoutedEventArgs e)
+        {
+            Task.Factory.StartNew(() =>
+            {
+                DataAccess.ResetDatabase();
+                Helper.ShowToast("Delete File DB Success");
             });
         }
     }

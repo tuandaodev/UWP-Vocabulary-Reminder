@@ -65,23 +65,7 @@ namespace VocabularyReminder
         public async static void InitializeDatabase()
         {
             await ApplicationData.Current.LocalFolder.CreateFileAsync("vocabulary.db", CreationCollisionOption.OpenIfExists);
-            string dbpath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "vocabulary.db");
-            using (SqliteConnection db =
-               new SqliteConnection($"Filename={dbpath}"))
-            {
-                db.Open();
-                String tableCommand = "CREATE TABLE IF NOT " +
-                    "EXISTS Dictionary (Id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                    "Name NVARCHAR(2048) NULL, Description NVARCHAR(2048) NULL)";
-                SqliteCommand createTable = new SqliteCommand(tableCommand, db);
-                createTable.ExecuteReader();
-
-                tableCommand = "CREATE TABLE IF NOT " +
-                    "EXISTS Vocabulary (Id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                    "Word NVARCHAR(2048) NULL, Type NVARCHAR(100) NULL, Ipa NVARCHAR(100) NULL, Translate NVARCHAR(2048) NULL, PlayURL NVARCHAR(2048) NULL)";
-                createTable = new SqliteCommand(tableCommand, db);
-                createTable.ExecuteReader();
-            }
+            DataAccess.InitializeDatabase();
         }
 
         private void App_Suspending(object sender, SuspendingEventArgs e)

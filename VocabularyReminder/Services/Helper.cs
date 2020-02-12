@@ -10,6 +10,11 @@ namespace VocabularyReminder.Services
 {
     class Helper
     {
+        public static void ClearToast()
+        {
+            ToastNotificationManager.History.Clear();
+        }
+
         public static void ShowToast(string msg, string subMsg = null)
         {
             if (subMsg == null) subMsg = "";
@@ -22,6 +27,7 @@ namespace VocabularyReminder.Services
             toastTextElements[0].AppendChild(toastXml.CreateTextNode(msg));
             toastTextElements[1].AppendChild(toastXml.CreateTextNode(subMsg));
 
+            ToastNotificationManager.History.Clear();
             var toast = new ToastNotification(toastXml);
             ToastNotificationManager.CreateToastNotifier().Show(toast);
         }
