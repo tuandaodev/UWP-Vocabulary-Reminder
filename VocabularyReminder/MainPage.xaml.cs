@@ -48,55 +48,112 @@ namespace VocabularyReminder
         {
             this.InitializeComponent();
 
-            // Create a new playback list
-            if (PlaybackList == null)
-                PlaybackList = new MediaPlaybackList();
-
-            this.WordId = DataAccess.GetFirstWordId();
+            Task.Factory.StartNew(() =>
+            {
+                // Create a new playback list
+                if (PlaybackList == null)
+                    PlaybackList = new MediaPlaybackList();
+                this.WordId = DataAccess.GetFirstWordId();
+            });
         }
 
         private void btn_Import_Click(object sender, RoutedEventArgs e)
         {
+            Helper.ShowToast("Start Importing...");
             string tempInp = this.inp_ListWord.Text;
             var ListWord = Regex.Split(tempInp, "\r\n|\r|\n");
             Task.Factory.StartNew(() =>
             {
-                int Count = 0;
-                foreach (var item in ListWord)
-                {
-                    DataAccess.AddVocabulary(item);
-                    Count++;
-                }
-                Helper.ShowToast("Import Success " + Count + " Vocabulary.");
+                //try
+                //{
+                    int Count = 0;
+                    int CountSuccess = 0;
+                    foreach (var item in ListWord)
+                    {
+                        if (!String.IsNullOrEmpty(item))
+                        {
+                            Count++;
+                            if (DataAccess.AddVocabulary(item) > 0)
+                            {
+                                CountSuccess++;
+                            }
+                        }
+                    }
+                    Helper.ShowToast("Imported Success " + CountSuccess + "/" + Count + " Entered Vocabulary.");
+                //} catch (Exception ex)
+                //{
+                //    Helper.ShowToast("Import Fail: " + ex.Message);
+                //}
             });
         }
 
-        private void ProcessBackgroundTranslate()
+        private async Task ProcessBackgroundTranslateAsync()
         {
-            var ListVocabulary = DataAccess.GetListVocabularyToTranslate();
-            foreach (var item in ListVocabulary)
+            try
             {
-                TranslateService.goTranslateAsync(item);
+                var ListVocabulary = DataAccess.GetListVocabularyToTranslate();
+
+                ParallelOptions parallelOptions = new ParallelOptions();
+                parallelOptions.MaxDegreeOfParallelism = Environment.ProcessorCount * 2;    // TODO
+                await Task.Run(() => Parallel.ForEach(ListVocabulary, parallelOptions, async _item =>
+                {
+                    await TranslateService.goTranslateAsync(_item);
+                }));
+
+                Helper.ShowToast("Crawling: Process Background Translate Finished.");
+            } catch (Exception ex)
+            {
+                Helper.ShowToast("Crawling: Process Background Translate Failed: " + ex.Message);
             }
-            Helper.ShowToast("Process Background Translate Finished.");
         }
 
-        private void ProcessBackgroundGetPlayURL()
+        private async Task ProcessBackgroundGetPlayURLAsync()
         {
-            var ListVocabulary = DataAccess.GetListVocabularyToGetPlayURL();
-            foreach (var item in ListVocabulary)
+            try
             {
-                TranslateService.goGetPlayURLAsync(item);
+                var ListVocabulary = DataAccess.GetListVocabularyToGetPlayURL();
+
+                ParallelOptions parallelOptions = new ParallelOptions();
+                parallelOptions.MaxDegreeOfParallelism = Environment.ProcessorCount * 2;    // TODO
+                await Task.Run(() => Parallel.ForEach(ListVocabulary, parallelOptions, async _item =>
+                {
+                    await TranslateService.goGetPlayURLAsync(_item);
+                }));
+
+                Helper.ShowToast("Crawling: Process Background Get Play URL Finished.");
+
+            } catch (Exception ex)
+            {
+                Helper.ShowToast("Crawling: Process Background Get Play URL Fail: " + ex.Message);
             }
-            Helper.ShowToast("Process Background Get Play URL Finished.");
+            
+        }
+
+        private void ProcessBackgroundGetRelatedWords()
+        {
+            try
+            {
+                var ListVocabulary = DataAccess.GetListVocabularyToGetRelatedWords();
+                foreach (var _item in ListVocabulary)
+                {
+                    TranslateService.goGetRelatedAsync(_item);
+                }
+                Helper.ShowToast("Crawling: Process Background Get Related Words Finished.");
+            } catch (Exception ex)
+            {
+                Helper.ShowToast("Crawling: Process Background Get Related Words Fail: " + ex.Message);
+            }
         }
 
         private void btn_Process_Translate_Mp3_Click(object sender, RoutedEventArgs e)
         {
-            Task.Factory.StartNew(() =>
+            Task.Factory.StartNew(async () =>
             {
-                this.ProcessBackgroundTranslate();
-                this.ProcessBackgroundGetPlayURL();
+                Helper.ShowToast("Start Crawling...");
+                await this.ProcessBackgroundTranslateAsync();
+                await this.ProcessBackgroundGetPlayURLAsync();
+                this.ProcessBackgroundGetRelatedWords();
+                Helper.ShowToast("Crawling Finished.");
             });
         }
 
@@ -105,9 +162,15 @@ namespace VocabularyReminder
             Task.Factory.StartNew(() =>
             {
                 Helper.ClearToast();
-                WordId++;
                 Vocabulary _item = DataAccess.GetVocabularyById(WordId);
+                if (_item.Id == 0)
+                {
+                    WordId = DataAccess.GetFirstWordId();
+                    _item = DataAccess.GetVocabularyById(WordId);
+                }
+                WordId++;
                 VocabularyToast.loadByVocabulary(_item);
+                
                 //while (true)
                 //{
 
@@ -118,11 +181,35 @@ namespace VocabularyReminder
 
         private void btn_Delete_DB_Click(object sender, RoutedEventArgs e)
         {
-            Task.Factory.StartNew(() =>
+            Task.Factory.StartNew(async () =>
             {
-                DataAccess.ResetDatabase();
-                Helper.ShowToast("Delete File DB Success");
+                try
+                {
+                    Helper.ShowToast("Start Deleting...");
+                    var files = await ApplicationData.Current.LocalFolder.GetFilesAsync();
+                    foreach (var file in files)
+                    {
+                        await file.DeleteAsync();
+                    }
+                    await ApplicationData.Current.LocalFolder.CreateFileAsync("vocabulary.db", CreationCollisionOption.OpenIfExists);
+                    DataAccess.InitializeDatabase();
+                    Helper.ShowToast("Delete File DB Success");
+                } catch (Exception ex)
+                {
+                    Helper.ShowToast("Delete File DB Fail: " + ex.Message);
+                }
             });
+        }
+
+        private void btn_Test_Click(object sender, RoutedEventArgs e)
+        {
+            Vocabulary _item = DataAccess.GetVocabularyById(WordId);
+            if (_item.Id == 0)
+            {
+                WordId = DataAccess.GetFirstWordId();
+                _item = DataAccess.GetVocabularyById(WordId);
+            }
+            TranslateService.goGetRelatedAsync(_item);
         }
     }
 }

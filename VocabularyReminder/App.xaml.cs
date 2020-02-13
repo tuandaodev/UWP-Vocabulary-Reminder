@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using VocabularyReminder.Services;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
 using Windows.ApplicationModel.Background;
@@ -417,42 +418,63 @@ namespace VocabularyReminder
 
         private void processCustomAction(string main_action, QueryString args)
         {
-            switch (main_action)
+            try
             {
-                case "play":
-                    int WordId;
-                    string Mp3Url = args["url"];
-                    if (Mp3Url.Length > 0)
-                    {
-                        Mp3.play(mediaPlayer, Mp3Url);
-                    }
-                    var toast = ToastNotificationManager.History.GetHistory();
-                    if (toast.Count > 0)
-                    {
-                        ToastNotificationManager.CreateToastNotifier().Show(toast.Last());
-                    } else
-                    {
+                int WordId;
+                Vocabulary _item;
+                switch (main_action)
+                {
+                    case "reload":
                         WordId = int.Parse(args["WordId"]);
-                        Vocabulary _item = DataAccess.GetVocabularyById(WordId);
+                        _item = DataAccess.GetVocabularyById(WordId);
                         VocabularyToast.loadByVocabulary(_item);
-                    }
-                    break;
-                case "next":
-                    WordId = int.Parse(args["WordId"]);
-                    if (WordId > 0)
-                    {
-                        WordId++;
-                        Vocabulary _item = DataAccess.GetVocabularyById(WordId);
+                        break;
+                    case "play":
+                        WordId = int.Parse(args["WordId"]);
+                        int playId = int.Parse(args["PlayId"]);
+                        if (WordId > 0)
+                        {
+                            _item = DataAccess.GetVocabularyById(WordId);
+                            VocabularyToast.loadByVocabulary(_item);
+                            if (playId == 2)
+                            {
+                                if (_item.PlayURL2.Length > 0)
+                                {
+                                    Mp3.play(mediaPlayer, _item.PlayURL2);
+                                }
+                            }
+                            else
+                            {
+                                if (_item.PlayURL.Length > 0)
+                                {
+                                    Mp3.play(mediaPlayer, _item.PlayURL);
+                                }
+                            }
+                        }
+                        break;
+                    case "next":
+                        WordId = int.Parse(args["WordId"]);
+                        if (WordId > 0)
+                        {
+                            WordId++;
+                        } else {
+                            WordId = DataAccess.GetFirstWordId();
+                        }
+                        _item = DataAccess.GetVocabularyById(WordId);
                         VocabularyToast.loadByVocabulary(_item);
-                    }
-                    break;
-                case "view":
-                    string SearchUrl = args["url"];
-                    // The URI to launch
-                    var uriBing = new Uri(SearchUrl);
-                    // Launch the URI
-                    var success = Windows.System.Launcher.LaunchUriAsync(uriBing);
-                    break;
+
+                        break;
+                    case "view":
+                        string SearchUrl = args["url"];
+                        // The URI to launch
+                        var uriBing = new Uri(SearchUrl);
+                        // Launch the URI
+                        var success = Windows.System.Launcher.LaunchUriAsync(uriBing);
+                        break;
+                }
+            } catch (Exception ex)
+            {
+                Helper.ShowToast("Action Background Error: " + ex.Message);
             }
         }
 

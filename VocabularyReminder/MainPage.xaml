@@ -9,11 +9,33 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid>
-        <Button x:Name="btn_Start_Learning" Content="Start Learning" Margin="191,736,0,0" VerticalAlignment="Top" Height="118" Width="1037" Click="btn_Start_Learning_Click"/>
-        <TextBox x:Name="inp_ListWord" HorizontalAlignment="Left" Margin="500,80,0,0" Text="" TextWrapping="Wrap" VerticalAlignment="Top" Height="Auto" Width="728" AcceptsReturn="True" PlaceholderText="Nhập list từ tại đây..." RequestedTheme="Default" />
-        <Button x:Name="btn_Import" Content="Import" Margin="191,80,0,0" VerticalAlignment="Top" Height="116" Width="211" Click="btn_Import_Click"/>
-        <Button x:Name="btn_Process_Translate_Mp3" Content="Process Translate and Mp3" Margin="191,218,0,0" VerticalAlignment="Top" Height="116" Width="211" Click="btn_Process_Translate_Mp3_Click"/>
-        <Button x:Name="btn_Delete_DB" Content="Delete Data" Margin="191,0,0,0" Height="116" Width="211" Click="btn_Delete_DB_Click"/>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="1*"/>
+            <RowDefinition Height="2*"/>
+            <RowDefinition Height="1*"/>
+            <RowDefinition Height="2*"/>
+            <RowDefinition Height="1*"/>
+            <RowDefinition Height="2*"/>
+            <RowDefinition Height="1*"/>
+            <RowDefinition Height="4*"/>
+            <RowDefinition Height="1*"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1*"></ColumnDefinition>
+            <ColumnDefinition Width="2*"></ColumnDefinition>
+            <ColumnDefinition Width="1*"></ColumnDefinition>
+            <ColumnDefinition Width="8*"></ColumnDefinition>
+            <ColumnDefinition Width="1*"></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+
+        <Button x:Name="btn_Start_Learning" Content="Start Learning" VerticalAlignment="Stretch" Grid.Column="3" Grid.Row="7" Click="btn_Start_Learning_Click" HorizontalAlignment="Stretch" Margin="0,0,0,0"/>
+        <TextBox x:Name="inp_ListWord" Text="" TextWrapping="Wrap" Grid.Column="3" Grid.Row="1" Grid.RowSpan="5" AcceptsReturn="True" PlaceholderText="Nhập list từ tại đây..." RequestedTheme="Default" Margin="0,0,0,0" />
+        <Button x:Name="btn_Import" Content="Import" VerticalAlignment="Stretch" Grid.Column="1" Grid.Row="1" Click="btn_Import_Click" HorizontalAlignment="Stretch"/>
+        <Button x:Name="btn_Process_Translate_Mp3" Content="Crawl Content" Grid.Column="1" Grid.Row="3" Click="btn_Process_Translate_Mp3_Click" HorizontalAlignment="Stretch" Margin="0,0,0,0" VerticalAlignment="Stretch"/>
+        <Button x:Name="btn_Delete_DB" Content="Delete Data" Grid.Column="1" Grid.Row="5" Click="btn_Delete_DB_Click" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Margin="0,0,0,0"/>
+
+        <Button x:Name="btn_Test" Content="Go Test" Grid.Column="1" Grid.Row="7" Click="btn_Test_Click" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Margin="0,0,0,0" Visibility="Collapsed"/>
+
 
     </Grid>
 </Page>

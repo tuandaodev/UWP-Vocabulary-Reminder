@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using VocabularyReminder.Services;
 using Windows.Media.Core;
 using Windows.Media.Playback;
 using Windows.Networking.BackgroundTransfer;
@@ -17,7 +18,6 @@ namespace VocabularyReminder
 
         public static void play(MediaPlayer mediaPlayer, string rawUrl)
         {
-
             Task.Factory.StartNew(async () =>
             {
                 var url = new Uri(rawUrl);
@@ -25,7 +25,7 @@ namespace VocabularyReminder
                 if (await isFilePresent(filename))
                 {
                     StorageFolder Folder = ApplicationData.Current.LocalFolder;
-                    StorageFile sf = await Folder.GetFileAsync(filename);
+                    //StorageFile sf = await Folder.GetFileAsync(filename);
                     mediaPlayer.Source = MediaSource.CreateFromStorageFile(await ApplicationData.Current.LocalFolder.GetFileAsync(filename));
                     mediaPlayer.Play();
                 } else
@@ -57,21 +57,28 @@ namespace VocabularyReminder
 
         private static void preLoadMp3Remote(string mp3RemoteUrl)
         {
-            Task.Factory.StartNew(async () =>
+            try
             {
-                var url = new Uri(mp3RemoteUrl);
-                string filename = System.IO.Path.GetFileName(url.LocalPath);
-                if (await isFilePresent(filename))
+                Task.Factory.StartNew(async () =>
                 {
-                    // do nothing
-                }
-                else
-                {
-                    var destinationFile = await ApplicationData.Current.LocalFolder.CreateFileAsync(filename, CreationCollisionOption.ReplaceExisting);
-                    var download = new BackgroundDownloader().CreateDownload(url, destinationFile);
-                    await download.StartAsync().AsTask();
-                }
-            });
+                    var url = new Uri(mp3RemoteUrl);
+                    string filename = System.IO.Path.GetFileName(url.LocalPath);
+                    if (await isFilePresent(filename))
+                    {
+                        // do nothing
+                    }
+                    else
+                    {
+                        var destinationFile = await ApplicationData.Current.LocalFolder.CreateFileAsync(filename, CreationCollisionOption.ReplaceExisting);
+                        var download = new BackgroundDownloader().CreateDownload(url, destinationFile);
+                        await download.StartAsync().AsTask();
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Helper.ShowToast("PreLoad Mp3 Error: " + ex.Message);
+            }
         }
 
         public static async Task<bool> isFilePresent(string fileName)

@@ -54,6 +54,10 @@ namespace VocabularyReminder
                 {
                     BindingGeneric = new ToastBindingGeneric()
                     {
+                        Attribution = new ToastGenericAttributionText()
+                        {
+                            Text = _item.Type
+                        },
                         Children =
                         {
                             new AdaptiveText()
@@ -80,39 +84,18 @@ namespace VocabularyReminder
                                         Children =
                                         {
                                             new AdaptiveText()
-                                            {
-                                                Text = _item.Word,
-                                                HintStyle = AdaptiveTextStyle.Base
+                                            { 
+                                                Text = _item.Word + " " + _Ipa,
+                                                HintStyle = AdaptiveTextStyle.Subtitle,
                                             },
-                                            new AdaptiveText()
-                                            {
-                                                Text = _Ipa,
-                                                HintStyle = AdaptiveTextStyle.Base
-                                            },
-                                            new AdaptiveText()
-                                            {
-                                                Text = _item.Type,
-                                                HintStyle = AdaptiveTextStyle.CaptionSubtle
-                                            }
-                                        }
-                                    },
-                                    new AdaptiveSubgroup()
-                                    {
-                                        Children =
-                                        {
                                             new AdaptiveText()
                                             {
                                                 Text = _item.Translate,
-                                                HintStyle = AdaptiveTextStyle.Base
+                                                HintStyle = AdaptiveTextStyle.Base,
                                             },
                                             new AdaptiveText()
                                             {
-                                                Text = _item.Example,
-                                                HintStyle = AdaptiveTextStyle.Base
-                                            },
-                                            new AdaptiveText()
-                                            {
-                                                Text = _item.Example2,
+                                                Text = _item.Related,
                                                 HintStyle = AdaptiveTextStyle.CaptionSubtle
                                             }
                                         }
@@ -130,13 +113,17 @@ namespace VocabularyReminder
                 Scenario = ToastScenario.Reminder,
                 Actions = new ToastActionsCustom()
                 {
+                    ContextMenuItems =
+                    {
+                        new ToastContextMenuItem("Reload", "action=reload&WordId=" + _item.Id.ToString())
+                    },
                     Buttons =
                         {
                             new ToastButton("\u25B6", new QueryString()
                             {
-                                { "WordId", _item.Id.ToString() },
                                 { "action", "play" },
-                                { "url", _item.PlayURL.ToString() }
+                                { "WordId", _item.Id.ToString() },
+                                { "PlayId", "1" },
                             }.ToString()) {
                                 ActivationType = ToastActivationType.Background,
                                 ActivationOptions = new ToastActivationOptions()
@@ -146,9 +133,9 @@ namespace VocabularyReminder
                             },
                             new ToastButton("\u25B7", new QueryString()
                             {
-                                { "WordId", _item.Id.ToString() },
                                 { "action", "play" },
-                                { "url", _item.PlayURL2.ToString() }
+                                { "WordId", _item.Id.ToString() },
+                                { "PlayId", "2" },
                             }.ToString())
                             {
                                 ActivationType = ToastActivationType.Background,
@@ -159,8 +146,8 @@ namespace VocabularyReminder
                             },
                             new ToastButton("Next", new QueryString()
                             {
-                                { "WordId", _item.Id.ToString() },
                                 { "action", "next" },
+                                { "WordId", _item.Id.ToString() },
                             }.ToString())
                             {
                                 ActivationType = ToastActivationType.Background,
@@ -171,14 +158,13 @@ namespace VocabularyReminder
                             },
                             new ToastButton("View", new QueryString()
                             {
-                                    { "action", "view" },
-                                    { "url", viewDicOnlineUrl + _item.Word }
-
-                            }.ToString()),
-                            new ToastButton("Close", "dismiss")
-                            {
-                                ActivationType = ToastActivationType.Background
-                            },
+                                { "action", "view" },
+                                { "url", viewDicOnlineUrl + _item.Word }
+                             }.ToString()),
+                            //new ToastButton("Close", "dismiss")
+                            //{
+                            //    ActivationType = ToastActivationType.Background
+                            //},
                         }
                 },
 

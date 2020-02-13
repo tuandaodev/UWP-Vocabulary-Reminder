@@ -13,8 +13,7 @@ namespace DataAccessLibrary
         public static void InitializeDatabase()
         {
             string dbpath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "vocabulary.db");
-            using (SqliteConnection db =
-               new SqliteConnection($"Filename={dbpath}"))
+            using (SqliteConnection db = new SqliteConnection($"Filename={dbpath}"))
             {
                 db.Open();
                 String tableCommand = "CREATE TABLE IF NOT " +
@@ -25,17 +24,19 @@ namespace DataAccessLibrary
 
                 tableCommand = "CREATE TABLE IF NOT " +
                     "EXISTS Vocabulary (Id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                    "Word NVARCHAR(2048) NULL, Type NVARCHAR(100) NULL, Ipa NVARCHAR(100) NULL, Ipa2 NVARCHAR(100) NULL, Translate NVARCHAR(2048) NULL, Define NVARCHAR(2048) NULL, Example NVARCHAR(2048) NULL, Example2 NVARCHAR(2048) NULL, PlayURL NVARCHAR(2048) NULL, PlayURL2 NVARCHAR(2048) NULL)";
+                    "Word NVARCHAR(2048) NOT NULL UNIQUE, Type NVARCHAR(100) NULL, Ipa NVARCHAR(100) NULL, Ipa2 NVARCHAR(100) NULL, Translate NVARCHAR(2048) NULL, Define NVARCHAR(2048) NULL, Example NVARCHAR(2048) NULL, Example2 NVARCHAR(2048) NULL, PlayURL NVARCHAR(2048) NULL, PlayURL2 NVARCHAR(2048) NULL, Related NVARCHAR(2048) NULL)";
                 createTable = new SqliteCommand(tableCommand, db);
                 createTable.ExecuteReader();
+
+                db.Close();
+                db.Dispose();
             }
         }
 
         public static void ResetDatabase()
         {
             string dbpath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "vocabulary.db");
-            using (SqliteConnection db =
-               new SqliteConnection($"Filename={dbpath}"))
+            using (SqliteConnection db = new SqliteConnection($"Filename={dbpath}"))
             {
                 db.Open();
                 String tableCommand = "DELETE FROM Dictionary;";
@@ -45,26 +46,41 @@ namespace DataAccessLibrary
                 tableCommand = "DELETE FROM Vocabulary;";
                 truncTable = new SqliteCommand(tableCommand, db);
                 truncTable.ExecuteNonQuery();
+
+                tableCommand = "delete from sqlite_sequence where name = 'Dictionary'; delete from sqlite_sequence where name = 'Vocabulary';";
+                truncTable = new SqliteCommand(tableCommand, db);
+                truncTable.ExecuteNonQuery();
+                db.Close();
+                db.Dispose();
             }
         }
 
-        public static void AddVocabulary(string inputText)
+        public static int AddVocabulary(string inputText)
         {
+            if (String.IsNullOrEmpty(inputText)) return 0;
             string dbpath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "vocabulary.db");
-            using (SqliteConnection db =
-              new SqliteConnection($"Filename={dbpath}"))
+
+            int inserted = 0;
+            using (SqliteConnection db = new SqliteConnection($"Filename={dbpath}"))
             {
                 db.Open();
                 SqliteCommand insertCommand = new SqliteCommand();
                 insertCommand.Connection = db;
 
                 // Use parameterized query to prevent SQL injection attacks
-                insertCommand.CommandText = "INSERT INTO Vocabulary (Word) VALUES (@Entry);";
+                insertCommand.CommandText = "INSERT OR IGNORE INTO Vocabulary (Word) VALUES (@Entry); SELECT last_insert_rowid();";
                 insertCommand.Parameters.AddWithValue("@Entry", inputText);
-                insertCommand.ExecuteReader();
-
+                var result = insertCommand.ExecuteScalar();
                 db.Close();
+                db.Dispose();
+
+                if (result != null)
+                {
+                    int.TryParse(result.ToString(), out inserted);
+                }
             }
+
+            return inserted;
         }
 
         public static void UpdateVocabulary(Vocabulary item)
@@ -89,6 +105,7 @@ namespace DataAccessLibrary
                     updateCommand.ExecuteNonQuery();
 
                     db.Close();
+                    db.Dispose();
                 }
             //} catch (Exception ex)
             //{
@@ -125,6 +142,34 @@ namespace DataAccessLibrary
                 updateCommand.ExecuteNonQuery();
 
                 db.Close();
+                db.Dispose();
+            }
+            //} catch (Exception ex)
+            //{
+            //    Debug.WriteLine(ex.Message);
+            //}
+        }
+
+        public static void UpdateRelated(Vocabulary item)
+        {
+            //try
+            //{
+            string dbpath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "vocabulary.db");
+            using (SqliteConnection db = new SqliteConnection($"Filename={dbpath}"))
+            {
+                db.Open();
+                SqliteCommand updateCommand = new SqliteCommand();
+                updateCommand.Connection = db;
+
+                // Use parameterized query to prevent SQL injection attacks
+                updateCommand.CommandText = "UPDATE Vocabulary SET Related = @Related WHERE Id = @Id";
+                updateCommand.Parameters.Add("@Id", SqliteType.Integer).Value = item.Id;
+
+                updateCommand.Parameters.Add("@Related", SqliteType.Text).Value = item.Related;
+                updateCommand.ExecuteNonQuery();
+
+                db.Close();
+                db.Dispose();
             }
             //} catch (Exception ex)
             //{
@@ -146,25 +191,18 @@ namespace DataAccessLibrary
                 db.Open();
 
                 SqliteCommand selectCommand = new SqliteCommand
-                    ("SELECT * from Vocabulary WHERE Id = " + Id, db);
+                    ("SELECT * from Vocabulary WHERE Id = " + Id + " LIMIT 1;", db);
 
                 SqliteDataReader query = selectCommand.ExecuteReader();
 
                 while (query.Read())
                 {
-                    _item.Id = int.Parse(query.GetString(0));
-                    _item.Word = query.IsDBNull(1) ? "" : query.GetString(1);
-                    _item.Type = query.IsDBNull(2) ? "" : query.GetString(2);
-                    _item.Ipa = query.IsDBNull(3) ? "" : query.GetString(3);
-                    _item.Ipa2 = query.IsDBNull(4) ? "" : query.GetString(4);
-                    _item.Translate = query.IsDBNull(5) ? "" : query.GetString(5);
-                    _item.Define = query.IsDBNull(6) ? "" : query.GetString(6);
-                    _item.Example = query.IsDBNull(7) ? "" : query.GetString(7);
-                    _item.Example2 = query.IsDBNull(8) ? "" : query.GetString(8);
-                    _item.PlayURL = query.IsDBNull(9) ? "" : query.GetString(9);
-                    _item.PlayURL2 = query.IsDBNull(10) ? "" : query.GetString(10);
+                    _item = GetItemFromRead(query);
                 }
+
+                query.Close();
                 db.Close();
+                db.Dispose();
             }
 
             return _item;
@@ -188,7 +226,10 @@ namespace DataAccessLibrary
                 {
                     _WordId = int.Parse(query.GetString(0));
                 }
+
+                query.Close();
                 db.Close();
+                db.Dispose();
             }
             return _WordId;
         }
@@ -198,8 +239,7 @@ namespace DataAccessLibrary
             List<Vocabulary> entries = new List<Vocabulary>();
 
             string dbpath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "vocabulary.db");
-            using (SqliteConnection db =
-               new SqliteConnection($"Filename={dbpath}"))
+            using (SqliteConnection db = new SqliteConnection($"Filename={dbpath}"))
             {
                 db.Open();
 
@@ -210,27 +250,35 @@ namespace DataAccessLibrary
 
                 while (query.Read())
                 {
-                    Vocabulary _item = new Vocabulary();
-
-                    _item.Id = int.Parse(query.GetString(0));
-                    _item.Word = query.IsDBNull(1) ? "" : query.GetString(1);
-                    _item.Type = query.IsDBNull(2) ? "" : query.GetString(2);
-                    _item.Ipa = query.IsDBNull(3) ? "" : query.GetString(3);
-                    _item.Ipa2 = query.IsDBNull(4) ? "" : query.GetString(4);
-                    _item.Translate = query.IsDBNull(5) ? "" : query.GetString(5);
-                    _item.Define = query.IsDBNull(6) ? "" : query.GetString(6);
-                    _item.Example = query.IsDBNull(7) ? "" : query.GetString(7);
-                    _item.Example2 = query.IsDBNull(8) ? "" : query.GetString(8);
-                    _item.PlayURL = query.IsDBNull(9) ? "" : query.GetString(9);
-                    _item.PlayURL2 = query.IsDBNull(10) ? "" : query.GetString(10);
-
-                    entries.Add(_item);
+                    entries.Add(GetItemFromRead(query));
                 }
 
+                query.Close();
                 db.Close();
+                db.Dispose();
             }
 
             return entries;
+        }
+
+        private static Vocabulary GetItemFromRead(SqliteDataReader query)
+        {
+            Vocabulary _item = new Vocabulary();
+
+            _item.Id = int.Parse(query.GetString(0));
+            _item.Word = query.IsDBNull(1) ? "" : query.GetString(1);
+            _item.Type = query.IsDBNull(2) ? "" : query.GetString(2);
+            _item.Ipa = query.IsDBNull(3) ? "" : query.GetString(3);
+            _item.Ipa2 = query.IsDBNull(4) ? "" : query.GetString(4);
+            _item.Translate = query.IsDBNull(5) ? "" : query.GetString(5);
+            _item.Define = query.IsDBNull(6) ? "" : query.GetString(6);
+            _item.Example = query.IsDBNull(7) ? "" : query.GetString(7);
+            _item.Example2 = query.IsDBNull(8) ? "" : query.GetString(8);
+            _item.PlayURL = query.IsDBNull(9) ? "" : query.GetString(9);
+            _item.PlayURL2 = query.IsDBNull(10) ? "" : query.GetString(10);
+            _item.Related = query.IsDBNull(11) ? "" : query.GetString(11);
+
+            return _item;
         }
 
 
@@ -251,24 +299,12 @@ namespace DataAccessLibrary
 
                 while (query.Read())
                 {
-                    Vocabulary _item = new Vocabulary();
-
-                    _item.Id = int.Parse(query.GetString(0));
-                    _item.Word = query.IsDBNull(1) ? "" : query.GetString(1);
-                    _item.Type = query.IsDBNull(2) ? "" : query.GetString(2);
-                    _item.Ipa = query.IsDBNull(3) ? "" : query.GetString(3);
-                    _item.Ipa2 = query.IsDBNull(4) ? "" : query.GetString(4);
-                    _item.Translate = query.IsDBNull(5) ? "" : query.GetString(5);
-                    _item.Define = query.IsDBNull(6) ? "" : query.GetString(6);
-                    _item.Example = query.IsDBNull(7) ? "" : query.GetString(7);
-                    _item.Example2 = query.IsDBNull(8) ? "" : query.GetString(8);
-                    _item.PlayURL = query.IsDBNull(9) ? "" : query.GetString(9);
-                    _item.PlayURL2 = query.IsDBNull(10) ? "" : query.GetString(10);
-
-                    entries.Add(_item);
+                    entries.Add(GetItemFromRead(query));
                 }
 
+                query.Close();
                 db.Close();
+                db.Dispose();
             }
 
             return entries;
@@ -280,8 +316,7 @@ namespace DataAccessLibrary
             List<Vocabulary> entries = new List<Vocabulary>();
 
             string dbpath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "vocabulary.db");
-            using (SqliteConnection db =
-               new SqliteConnection($"Filename={dbpath}"))
+            using (SqliteConnection db = new SqliteConnection($"Filename={dbpath}"))
             {
                 db.Open();
 
@@ -292,24 +327,40 @@ namespace DataAccessLibrary
 
                 while (query.Read())
                 {
-                    Vocabulary _item = new Vocabulary();
-
-                    _item.Id = int.Parse(query.GetString(0));
-                    _item.Word = query.IsDBNull(1) ? "" : query.GetString(1);
-                    _item.Type = query.IsDBNull(2) ? "" : query.GetString(2);
-                    _item.Ipa = query.IsDBNull(3) ? "" : query.GetString(3);
-                    _item.Ipa2 = query.IsDBNull(4) ? "" : query.GetString(4);
-                    _item.Translate = query.IsDBNull(5) ? "" : query.GetString(5);
-                    _item.Define = query.IsDBNull(6) ? "" : query.GetString(6);
-                    _item.Example = query.IsDBNull(7) ? "" : query.GetString(7);
-                    _item.Example2 = query.IsDBNull(8) ? "" : query.GetString(8);
-                    _item.PlayURL = query.IsDBNull(9) ? "" : query.GetString(9);
-                    _item.PlayURL2 = query.IsDBNull(10) ? "" : query.GetString(10);
-
-                    entries.Add(_item);
+                    entries.Add(GetItemFromRead(query));
                 }
 
+                query.Close();
                 db.Close();
+                db.Dispose();
+            }
+
+            return entries;
+        }
+
+        public static List<Vocabulary> GetListVocabularyToGetRelatedWords()
+        {
+            List<Vocabulary> entries = new List<Vocabulary>();
+
+            string dbpath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "vocabulary.db");
+            using (SqliteConnection db =
+               new SqliteConnection($"Filename={dbpath}"))
+            {
+                db.Open();
+
+                SqliteCommand selectCommand = new SqliteCommand
+                    ("SELECT * from Vocabulary WHERE Related IS NULL OR Related = ''", db);
+
+                SqliteDataReader query = selectCommand.ExecuteReader();
+
+                while (query.Read())
+                {
+                    entries.Add(GetItemFromRead(query));
+                }
+
+                query.Close();
+                db.Close();
+                db.Dispose();
             }
 
             return entries;
@@ -339,6 +390,7 @@ namespace DataAccessLibrary
         public string Example2 { get; set; }
         public string PlayURL { get; set; }
         public string PlayURL2 { get; set; }
+        public string Related { get; set; }
 
         public Dictionary Dictionary { get; set; }
     }

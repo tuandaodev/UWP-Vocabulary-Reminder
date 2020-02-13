@@ -7,48 +7,81 @@ using System.Text;
 using System.Threading.Tasks;
 using DataAccessLibrary;
 using System.Diagnostics;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 
 namespace VocabularyReminder.Services
 {
     class TranslateService
     {
         public static string mainTranslateUrl = "https://dictionary.cambridge.org/vi/dictionary/english-vietnamese/";
-        const string xpath_translate = "(//span[@class='trans dtrans'])[1]";
+        const string xpath_translate = "//span[@class='trans dtrans']";
         const string xpath_ipa = "//span[@class='ipa dipa']";
-        const string xpath_type = "(//span[@class='pos dpos'])[1]";
+        const string xpath_type = "//span[@class='pos dpos']";
 
         public static string mainGetPlayUrl = "https://www.oxfordlearnersdictionaries.com/definition/english/";
         const string xpath_mp3 = "//span[@class='phonetics']/*";
 
-        public static async void goTranslateAsync(Vocabulary item)
+        public static string relatedAPIUrl = "https://relatedwords.org/api/related?term=";
+
+        public static async Task goTranslateAsync(Vocabulary item)
         {
             using (HttpClient httpClient = new HttpClient())
             {
-                //try
-                //{
-                    string _wordUrl = mainTranslateUrl + item.Word;
-                    HttpResponseMessage response = await httpClient.GetAsync(_wordUrl);
-                    HttpContent content = response.Content;
-                    HtmlDocument document = new HtmlDocument();
-                    document.LoadHtml(await content.ReadAsStringAsync());
-                    // Get Title
-                    var translate = document.DocumentNode.SelectSingleNode(xpath_translate);
-                    var type = document.DocumentNode.SelectSingleNode(xpath_type);
-                    //var ipa = document.DocumentNode.SelectSingleNode(xpath_ipa);
+                string _wordUrl = mainTranslateUrl + item.Word;
+                HttpResponseMessage response = await httpClient.GetAsync(_wordUrl);
+                HttpContent content = response.Content;
+                HtmlDocument document = new HtmlDocument();
+                document.LoadHtml(await content.ReadAsStringAsync());
 
-                    item.Translate = (translate != null) ? translate.InnerText : String.Empty;
-                    item.Type = (type != null) ? type.InnerText : String.Empty;
-                    //item.Ipa = (ipa != null) ? "/" + ipa.InnerText + "/" : String.Empty;
+                List<string> listTrans = new List<string>();
+                var translates = document.DocumentNode.SelectNodes(xpath_translate);
+                if (translates != null && translates.Count > 0)
+                foreach (var node in translates)
+                {
+                        if (!String.IsNullOrEmpty(node.InnerText))
+                        {
+                            listTrans.Add(node.InnerText);
+                        }
+                }
 
-                    DataAccess.UpdateVocabulary(item);
-                //} catch (Exception ex)
-                //{
-                //    Debug.WriteLine(ex.Message);
-                //}
+                List<string> listTypes = new List<string>();
+                var types = document.DocumentNode.SelectNodes(xpath_type);
+                if (types != null && types.Count > 0)
+                {
+                    foreach (var node in types)
+                    {
+                        if (!String.IsNullOrEmpty(node.InnerText))
+                        {
+                            listTypes.Add(node.InnerText);
+                        }
+                    }
+                }
+                    
+
+                if (listTrans.Count > 0)
+                {
+                    item.Translate = String.Join(", ", listTrans);
+                }
+                else
+                {
+                    item.Translate = String.Empty;
+                }
+
+                if (listTypes.Count > 0)
+                {
+                    item.Type = String.Join(", ", listTypes);
+                }
+                else
+                {
+                    item.Type = String.Empty;
+                }
+
+                DataAccess.UpdateVocabulary(item);
             }
         }
 
-        public static async void goGetPlayURLAsync(Vocabulary item)
+        public static async Task goGetPlayURLAsync(Vocabulary item)
         {
             using (HttpClient httpClient = new HttpClient())
             {
@@ -131,5 +164,45 @@ namespace VocabularyReminder.Services
                 //}
             }
         }
+
+        public static async void goGetRelatedAsync(Vocabulary item)
+        {
+            using (HttpClient httpClient = new HttpClient())
+            {
+                string _wordUrl = relatedAPIUrl + item.Word;
+                HttpResponseMessage response = await httpClient.GetAsync(_wordUrl);
+                HttpContent content = response.Content;
+
+                httpClient.DefaultRequestHeaders.ConnectionClose = true;
+
+                var rawJon = await content.ReadAsStringAsync();
+                var RelatedObj = JsonConvert.DeserializeObject<List<RelatedItem>>(rawJon);
+
+                int _Count = 0;
+                List<string> RelatedList = new List<string>();
+                foreach (RelatedItem _relatedItem in RelatedObj)
+                {
+                    _Count++;
+                    if (_Count > 10) break;
+                    RelatedList.Add(_relatedItem.word);
+                }
+
+                item.Related = (RelatedList.Count > 0) ? String.Join(", ", RelatedList) : String.Empty;
+                DataAccess.UpdateRelated(item);
+            }
+        }
     }
+
+    class RelatedItem
+    {
+        [JsonProperty("word")]
+        public string word { get; set; }
+
+        [JsonProperty("score")]
+        public string score { get; set; }
+
+        [JsonProperty("from")]
+        public string from { get; set; }
+    }
+
 }
