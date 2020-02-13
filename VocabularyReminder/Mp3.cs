@@ -9,14 +9,14 @@ using Windows.Media.Core;
 using Windows.Media.Playback;
 using Windows.Networking.BackgroundTransfer;
 using Windows.Storage;
+using Windows.Storage.FileProperties;
 
 namespace VocabularyReminder
 {
 
     public class Mp3
     {
-
-        public static void play(MediaPlayer mediaPlayer, string rawUrl)
+        public static void play(string rawUrl)
         {
             Task.Factory.StartNew(async () =>
             {
@@ -26,65 +26,82 @@ namespace VocabularyReminder
                 {
                     StorageFolder Folder = ApplicationData.Current.LocalFolder;
                     //StorageFile sf = await Folder.GetFileAsync(filename);
-                    mediaPlayer.Source = MediaSource.CreateFromStorageFile(await ApplicationData.Current.LocalFolder.GetFileAsync(filename));
-                    mediaPlayer.Play();
+                    App.mediaPlayer.Source = MediaSource.CreateFromStorageFile(await ApplicationData.Current.LocalFolder.GetFileAsync(filename));
+                    App.mediaPlayer.Play();
                 } else
                 {
                     var destinationFile = await ApplicationData.Current.LocalFolder.CreateFileAsync(filename, CreationCollisionOption.ReplaceExisting);
                     var download = new BackgroundDownloader().CreateDownload(url, destinationFile);
                     //download.IsRandomAccessRequired = true;
-                    mediaPlayer.Source = MediaSource.CreateFromDownloadOperation(download);
-                    mediaPlayer.AutoPlay = true;
-                    mediaPlayer.Play();
+                    App.mediaPlayer.Source = MediaSource.CreateFromDownloadOperation(download);
+                    App.mediaPlayer.AutoPlay = true;
+                    App.mediaPlayer.Play();
                 }
             });
         }
 
-        public static void preloadMp3File(Vocabulary _item)
+        public static void preloadMp3FileSingle(Vocabulary _item)
         {
             Task.Factory.StartNew(() =>
             {
                 if (!String.IsNullOrEmpty(_item.PlayURL))
                 {
-                    preLoadMp3Remote(_item.PlayURL);
+                    Task.Factory.StartNew(async () =>
+                    {
+                        await preloadMp3SingleAsync(_item.PlayURL);
+                    });
                 }
                 if (!String.IsNullOrEmpty(_item.PlayURL2))
                 {
-                    preLoadMp3Remote(_item.PlayURL2);
+                    Task.Factory.StartNew(async () =>
+                    {
+                        await preloadMp3SingleAsync(_item.PlayURL2);
+                    });
                 }
             });
-        }
-
-        private static void preLoadMp3Remote(string mp3RemoteUrl)
-        {
-            try
-            {
-                Task.Factory.StartNew(async () =>
-                {
-                    var url = new Uri(mp3RemoteUrl);
-                    string filename = System.IO.Path.GetFileName(url.LocalPath);
-                    if (await isFilePresent(filename))
-                    {
-                        // do nothing
-                    }
-                    else
-                    {
-                        var destinationFile = await ApplicationData.Current.LocalFolder.CreateFileAsync(filename, CreationCollisionOption.ReplaceExisting);
-                        var download = new BackgroundDownloader().CreateDownload(url, destinationFile);
-                        await download.StartAsync().AsTask();
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                Helper.ShowToast("PreLoad Mp3 Error: " + ex.Message);
-            }
         }
 
         public static async Task<bool> isFilePresent(string fileName)
         {
             var item = await ApplicationData.Current.LocalFolder.TryGetItemAsync(fileName);
+            if (item != null)
+            {
+                BasicProperties props = await item.GetBasicPropertiesAsync();
+                if (props.Size == 0)
+                {
+                    await item.DeleteAsync();
+                    return false;
+                }
+            }
             return item != null;
+        }
+
+        public static async Task preloadMp3SingleAsync(string mp3RemoteUrl)
+        {
+            var url = new Uri(mp3RemoteUrl);
+            string filename = System.IO.Path.GetFileName(url.LocalPath);
+            if (await isFilePresent(filename))
+            {
+                // do nothing
+            }
+            else
+            {
+                var destinationFile = await ApplicationData.Current.LocalFolder.CreateFileAsync(filename, CreationCollisionOption.ReplaceExisting);
+                var download = new BackgroundDownloader().CreateDownload(url, destinationFile);
+                await download.StartAsync().AsTask();
+            }
+        }
+
+        public static async Task preloadMp3Multiple(Vocabulary _item)
+        {
+            if (!String.IsNullOrEmpty(_item.PlayURL))
+            {
+                await preloadMp3SingleAsync(_item.PlayURL);
+            }
+            if (!String.IsNullOrEmpty(_item.PlayURL2))
+            {
+                await preloadMp3SingleAsync(_item.PlayURL2);
+            }
         }
     }
 }

@@ -53,7 +53,6 @@ namespace VocabularyReminder
                 // Create a new playback list
                 if (PlaybackList == null)
                     PlaybackList = new MediaPlaybackList();
-                this.WordId = DataAccess.GetFirstWordId();
             });
         }
 
@@ -145,6 +144,29 @@ namespace VocabularyReminder
             }
         }
 
+        private async Task ProcessBackgroundPreLoadMp3()
+        {
+            try
+            {
+                var ListVocabulary = DataAccess.GetListVocabularyToPreloadMp3();
+
+                ParallelOptions parallelOptions = new ParallelOptions();
+                parallelOptions.MaxDegreeOfParallelism = (int)Environment.ProcessorCount / 2;    // TODO
+                await Task.Run(() => Parallel.ForEach(ListVocabulary, parallelOptions, async _item =>
+                {
+                    await Mp3.preloadMp3Multiple(_item);
+                }));
+
+                Helper.ShowToast("Crawling: Process Background Download MP3 Files Finished.");
+
+            }
+            catch (Exception ex)
+            {
+                Helper.ShowToast("Crawling: Process Background Get Play URL Fail: " + ex.Message);
+            }
+
+        }
+
         private void btn_Process_Translate_Mp3_Click(object sender, RoutedEventArgs e)
         {
             Task.Factory.StartNew(async () =>
@@ -153,7 +175,7 @@ namespace VocabularyReminder
                 await this.ProcessBackgroundTranslateAsync();
                 await this.ProcessBackgroundGetPlayURLAsync();
                 this.ProcessBackgroundGetRelatedWords();
-                Helper.ShowToast("Crawling Finished.");
+                Helper.ShowToast("Crawling Finished. Some background tasks are still running to get data. Wait some minutes to it finished.");
             });
         }
 
@@ -162,13 +184,14 @@ namespace VocabularyReminder
             Task.Factory.StartNew(() =>
             {
                 Helper.ClearToast();
-                Vocabulary _item = DataAccess.GetVocabularyById(WordId);
+                
+                Vocabulary _item = DataAccess.GetVocabularyById(App.WordId);
                 if (_item.Id == 0)
                 {
-                    WordId = DataAccess.GetFirstWordId();
-                    _item = DataAccess.GetVocabularyById(WordId);
+                    App.WordId = DataAccess.GetFirstWordId();
+                    _item = DataAccess.GetVocabularyById(App.WordId);
                 }
-                WordId++;
+                App.WordId++;
                 VocabularyToast.loadByVocabulary(_item);
                 
                 //while (true)
@@ -203,13 +226,23 @@ namespace VocabularyReminder
 
         private void btn_Test_Click(object sender, RoutedEventArgs e)
         {
-            Vocabulary _item = DataAccess.GetVocabularyById(WordId);
+            Vocabulary _item = DataAccess.GetVocabularyById(App.WordId);
             if (_item.Id == 0)
             {
-                WordId = DataAccess.GetFirstWordId();
-                _item = DataAccess.GetVocabularyById(WordId);
+                App.WordId = DataAccess.GetFirstWordId();
+                _item = DataAccess.GetVocabularyById(App.WordId);
             }
             TranslateService.goGetRelatedAsync(_item);
+        }
+
+        private void btn_Process_PreloadMp3_Click(object sender, RoutedEventArgs e)
+        {
+            Task.Factory.StartNew(async () =>
+            {
+                Helper.ShowToast("Start Preloading Mp3 File...");
+                await this.ProcessBackgroundPreLoadMp3();
+                Helper.ShowToast("Preloading Mp3 File Finished.");
+            });
         }
     }
 }

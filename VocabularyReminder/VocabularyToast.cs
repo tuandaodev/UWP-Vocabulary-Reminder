@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Windows.UI.Notifications;
 using DataAccessLibrary;
 using VocabularyReminder.Services;
+using System.Diagnostics;
 
 namespace VocabularyReminder
 {
@@ -27,7 +28,7 @@ namespace VocabularyReminder
                 content = getToastContentWithoutPlay(_item);
             } else
             {
-                Mp3.preloadMp3File(_item);
+                Mp3.preloadMp3FileSingle(_item);
                 content = getToastContent(_item);
             }
             
@@ -36,7 +37,48 @@ namespace VocabularyReminder
                 Tag = "Vocabulary",
                 Group = "Reminder",
             };
+
+            _toastItem.Dismissed += ToastDismissed;
+            _toastItem.Failed += ToastFailed;
+            _toastItem.Priority = ToastNotificationPriority.High;
+
             ToastNotificationManager.CreateToastNotifier().Show(_toastItem);
+        }
+
+        public static bool reloadLastToast()
+        {
+            var _history = ToastNotificationManager.History.GetHistory();
+            if (_history.Count() > 0) {
+                ToastNotificationManager.CreateToastNotifier().Show(_history.Last());
+                return true;
+            }
+            return false;
+        }
+
+        private static void ToastDismissed(object source, ToastDismissedEventArgs e)
+        {
+            switch (e.Reason)
+            {
+                case ToastDismissalReason.ApplicationHidden:
+                    // Application hid the toast with ToastNotifier.Hide
+                    Debug.WriteLine("Application Hidden");
+                    break;
+                case ToastDismissalReason.UserCanceled:
+                    Debug.WriteLine("User dismissed the toast");
+                    break;
+                case ToastDismissalReason.TimedOut:
+                    Debug.WriteLine("Toast timeout elapsed");
+                    break;
+            }
+
+            Debug.WriteLine("Toast Dismissed: " + e.Reason.ToString());
+        }
+
+        private static void ToastFailed(object source, ToastFailedEventArgs e)
+        {
+            // Check the error code
+            var errorCode = e.ErrorCode;
+            Debug.WriteLine("Error code:{0}", errorCode);
         }
 
         private static ToastContent getToastContent(Vocabulary _item)
@@ -48,6 +90,8 @@ namespace VocabularyReminder
             
             ToastContent content = new ToastContent()
             {
+
+                Duration = ToastDuration.Long,
                 Launch = "vocabulary-reminder",
                 Audio = new ToastAudio() { Silent = true },
                 Visual = new ToastVisual()
@@ -124,6 +168,7 @@ namespace VocabularyReminder
                                 { "action", "play" },
                                 { "WordId", _item.Id.ToString() },
                                 { "PlayId", "1" },
+                                { "PlayUrl", _item.PlayURL },
                             }.ToString()) {
                                 ActivationType = ToastActivationType.Background,
                                 ActivationOptions = new ToastActivationOptions()
@@ -136,6 +181,7 @@ namespace VocabularyReminder
                                 { "action", "play" },
                                 { "WordId", _item.Id.ToString() },
                                 { "PlayId", "2" },
+                                { "PlayUrl", _item.PlayURL2 },
                             }.ToString())
                             {
                                 ActivationType = ToastActivationType.Background,

@@ -32,9 +32,10 @@
         <TextBox x:Name="inp_ListWord" Text="" TextWrapping="Wrap" Grid.Column="3" Grid.Row="1" Grid.RowSpan="5" AcceptsReturn="True" PlaceholderText="Nhập list từ tại đây..." RequestedTheme="Default" Margin="0,0,0,0" />
         <Button x:Name="btn_Import" Content="Import" VerticalAlignment="Stretch" Grid.Column="1" Grid.Row="1" Click="btn_Import_Click" HorizontalAlignment="Stretch"/>
         <Button x:Name="btn_Process_Translate_Mp3" Content="Crawl Content" Grid.Column="1" Grid.Row="3" Click="btn_Process_Translate_Mp3_Click" HorizontalAlignment="Stretch" Margin="0,0,0,0" VerticalAlignment="Stretch"/>
-        <Button x:Name="btn_Delete_DB" Content="Delete Data" Grid.Column="1" Grid.Row="5" Click="btn_Delete_DB_Click" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Margin="0,0,0,0"/>
+        <Button x:Name="btn_Delete_DB" Content="Delete Data" Grid.Column="1" Grid.Row="7" Click="btn_Delete_DB_Click" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
 
         <Button x:Name="btn_Test" Content="Go Test" Grid.Column="1" Grid.Row="7" Click="btn_Test_Click" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Margin="0,0,0,0" Visibility="Collapsed"/>
+        <Button x:Name="btn_Process_PreloadMp3" Content="Preload Mp3" Grid.Column="1" Grid.Row="5" Click="btn_Process_PreloadMp3_Click" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
 
 
     </Grid>

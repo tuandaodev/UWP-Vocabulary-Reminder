@@ -36,7 +36,10 @@ namespace VocabularyReminder
 
         bool isInBackgroundMode;
 
-        private static MediaPlayer mediaPlayer = new MediaPlayer();
+        public static int WordId = 0;
+
+        public static MediaPlayer mediaPlayer;
+        private Queue<string> listPlayMp3 = new Queue<string>();
 
         /// <summary>
         /// Initializes the singleton application object.  This is the first line of authored code
@@ -46,6 +49,10 @@ namespace VocabularyReminder
         {
             this.InitializeComponent();
             InitializeDatabase();
+            checkMediaPlayer();
+
+            //Mp3.play(mediaPlayer, "");
+
             this.Suspending += OnSuspending;
 
             MemoryManager.AppMemoryUsageLimitChanging += MemoryManager_AppMemoryUsageLimitChanging;
@@ -61,6 +68,15 @@ namespace VocabularyReminder
             // because the app may need to restore UI.
             EnteredBackground += App_EnteredBackground;
             LeavingBackground += App_LeavingBackground;
+        }
+
+        public void checkMediaPlayer()
+        {
+            if (mediaPlayer == null)
+            {
+                mediaPlayer = new MediaPlayer();
+                mediaPlayer.MediaEnded += OnMediaEnded;
+            }
         }
 
         public async static void InitializeDatabase()
@@ -113,6 +129,7 @@ namespace VocabularyReminder
             {
                 ReduceMemoryUsage(e.NewLimit);
             }
+            checkMediaPlayer();
         }
 
         /// <summary>
@@ -170,6 +187,7 @@ namespace VocabularyReminder
             // defer unloading views until AppMemoryUsageLimitChanging or 
             // AppMemoryUsageIncreased is raised with an indication that
             // the application is under memory pressure.
+            checkMediaPlayer();
         }
 
         /// <summary>
@@ -188,6 +206,7 @@ namespace VocabularyReminder
             {
                 ShowToast("Loading view");
                 CreateRootFrame(ApplicationExecutionState.Running, string.Empty);
+                checkMediaPlayer();
             }
         }
 
@@ -234,8 +253,8 @@ namespace VocabularyReminder
 
             // Run the GC to collect released resources, including triggering
             // each Page.Unloaded handler to run.
-            GC.Collect();
-
+            //GC.Collect();
+            checkMediaPlayer();
             ShowToast("Finished reducing memory usage");
         }
 
@@ -258,6 +277,12 @@ namespace VocabularyReminder
         {
             if (subMsg == null)
                 subMsg = GetMemoryUsageText();
+
+            //if (MemoryManager.AppMemoryUsageLevel < AppMemoryUsageLevel.Medium)
+            //{
+            //    VocabularyToast.reloadLastToast();
+            //}
+
             Debug.WriteLine(msg + "\n" + subMsg);
             return;
         }
@@ -416,38 +441,60 @@ namespace VocabularyReminder
             BackgroundTaskRegistration registration = builder.Register();
         }
 
+        
+        public void OnMediaEnded(MediaPlayer mediaPlayer, object args)
+        {
+            while (listPlayMp3.Count() > 0)
+            {
+                var currentUrl = listPlayMp3.Dequeue();
+                Mp3.play(currentUrl);
+            }
+        }
+
         private void processCustomAction(string main_action, QueryString args)
         {
             try
             {
-                int WordId;
-                Vocabulary _item;
                 switch (main_action)
                 {
                     case "reload":
                         WordId = int.Parse(args["WordId"]);
-                        _item = DataAccess.GetVocabularyById(WordId);
+                        var _item = DataAccess.GetVocabularyById(WordId);
                         VocabularyToast.loadByVocabulary(_item);
+                        _item = null;
                         break;
                     case "play":
                         WordId = int.Parse(args["WordId"]);
                         int playId = int.Parse(args["PlayId"]);
                         if (WordId > 0)
                         {
-                            _item = DataAccess.GetVocabularyById(WordId);
-                            VocabularyToast.loadByVocabulary(_item);
-                            if (playId == 2)
+                            string _mp3Url;
+                            if (VocabularyToast.reloadLastToast())
                             {
-                                if (_item.PlayURL2.Length > 0)
+                                _mp3Url = args["PlayUrl"];
+                            } else
+                            {
+                                _item = DataAccess.GetVocabularyById(WordId);
+                                VocabularyToast.loadByVocabulary(_item);
+                                if (playId == 2)
                                 {
-                                    Mp3.play(mediaPlayer, _item.PlayURL2);
+                                    _mp3Url = _item.PlayURL2;
+                                }
+                                else
+                                {
+                                    _mp3Url = _item.PlayURL;
                                 }
                             }
-                            else
+
+                            if (!String.IsNullOrEmpty(_mp3Url))
                             {
-                                if (_item.PlayURL.Length > 0)
+                                if (mediaPlayer.PlaybackSession.PlaybackState == MediaPlaybackState.Playing)
                                 {
-                                    Mp3.play(mediaPlayer, _item.PlayURL);
+                                    listPlayMp3.Enqueue(_mp3Url);
+                                } else
+                                {
+                                    checkMediaPlayer();
+                                    Mp3.play(_mp3Url);
                                 }
                             }
                         }
@@ -460,9 +507,9 @@ namespace VocabularyReminder
                         } else {
                             WordId = DataAccess.GetFirstWordId();
                         }
-                        _item = DataAccess.GetVocabularyById(WordId);
-                        VocabularyToast.loadByVocabulary(_item);
-
+                        var _item2 = DataAccess.GetVocabularyById(WordId);
+                        VocabularyToast.loadByVocabulary(_item2);
+                        _item2 = null;
                         break;
                     case "view":
                         string SearchUrl = args["url"];

@@ -234,7 +234,34 @@ namespace DataAccessLibrary
             return _WordId;
         }
 
-        public static List<Vocabulary> GetListVocabulary()
+        public static List<Vocabulary> GetListVocabularyToPreloadMp3()
+        {
+            List<Vocabulary> entries = new List<Vocabulary>();
+
+            string dbpath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "vocabulary.db");
+            using (SqliteConnection db = new SqliteConnection($"Filename={dbpath}"))
+            {
+                db.Open();
+
+                SqliteCommand selectCommand = new SqliteCommand
+                    ("SELECT * from Vocabulary WHERE PlayURL IS NOT NULL", db);
+
+                SqliteDataReader query = selectCommand.ExecuteReader();
+
+                while (query.Read())
+                {
+                    entries.Add(GetItemFromRead(query));
+                }
+
+                query.Close();
+                db.Close();
+                db.Dispose();
+            }
+
+            return entries;
+        }
+
+        public static List<Vocabulary> GetListVocabularyToGetTranslate()
         {
             List<Vocabulary> entries = new List<Vocabulary>();
 
